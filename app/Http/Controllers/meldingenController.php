@@ -1,29 +1,80 @@
 <?php
+session_start(); // nodig voor het opslaan van errors
 
-// Variabelen vullen
-$attractie  = $_POST['attractie'];
-$capaciteit = $_POST['capaciteit'];
-$melder     = $_POST['melder'];
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 
-echo $attractie . " / " . $capaciteit . " / " . $melder;
+// Controleer of het formulier is ingediend
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-// 1. Verbinding
-require_once '../../../config/conn.php';
+    // Variabelen veilig vullen
+    $attractie  = trim($_POST['attractie']  ?? '');
+    $type       = trim($_POST['type']       ?? '');
+    $capaciteit = trim($_POST['capaciteit'] ?? '');
+    $melder     = trim($_POST['melder']     ?? '');
 
-// 2. Query
-$sql = "INSERT INTO meldingen (attractie, capaciteit, melder)
-        VALUES (:attractie, :capaciteit, :melder)";
+    // Validatie
+    $errors = [];
 
-// 3. Prepare
-$stmt = $conn->prepare($sql);
+    if ($attractie === '') {
+        $errors[] = "Attractie mag niet leeg zijn.";
+    }
 
-// 4. Execute
-$stmt->execute([
-    ':attractie'  => $attractie,
-    ':capaciteit' => $capaciteit,
-    ':melder'     => $melder
-]);
+    if ($type === '') {
+        $errors[] = "Type mag niet leeg zijn.";
+    }
 
-echo "Gegevens succesvol opgeslagen!";
-?>
+    if ($capaciteit === '' || !is_numeric($capaciteit)) {
+        $errors[] = "Capaciteit moet een geldig getal zijn.";
+    }
 
+    if ($melder === '') {
+        $errors[] = "Melder mag niet leeg zijn.";
+    }
+
+    // Als er fouten zijn, sla ze op en ga terug
+    if (!empty($errors)) {
+        $_SESSION['errors'] = $errors;
+        $_SESSION['old'] = [
+            'attractie'  => $attractie,
+            'type'       => $type,
+            'capaciteit' => $capaciteit,
+            'melder'     => $melder
+        ];
+
+        // Terug naar formulierpagina
+        header("Location: /pad/naar/formulier.php");
+        exit;
+    }
+
+    // Verbinding
+    require_once __DIR__ . '/../../../config/conn.php';
+
+    // Query
+    $sql = "INSERT INTO meldingen (attractie, type, capaciteit, melder)
+            VALUES (:attractie, :type, :capaciteit, :melder)";
+
+    $stmt = $conn->prepare($sql);
+
+    try {
+        $stmt->execute([
+            ':attractie'  => $attractie,
+            ':type'       => $type,
+            ':capaciteit' => $capaciteit,
+            ':melder'     => $melder
+        ]);
+
+        $_SESSION['success'] = "Gegevens succesvol opgeslagen!";
+        header("Location: /pad/naar/formulier.php");
+        exit;
+
+    } catch (PDOException $e) {
+        $_SESSION['errors'] = ["Fout bij opslaan: " . $e->getMessage()];
+        header("Location: /pad/naar/formulier.php");
+        exit;
+    }
+
+} else {
+    echo "Formulier niet correct ingediend.";
+}
