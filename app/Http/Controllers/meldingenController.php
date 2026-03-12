@@ -6,7 +6,7 @@ $capaciteit = $_POST['capaciteit'];
 $melder = $_POST['melder'];
 
 //1. Verbinding
-require_once 'conn.php';
+require_once '../../../config/conn.php';
 
 //2. Query
 $query = "INSERT INTO meldingen (attractie, capaciteit, melder) VALUES(:attractie, :capaciteit, :melder)";
